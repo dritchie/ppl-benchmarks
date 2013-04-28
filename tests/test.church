@@ -1,0 +1,230 @@
+
+
+(define (check-test info expectation-fn true-expectation tolerance name)
+  (begin
+    (display "inference test: ")(display name)
+    (let* ((estimates (map (lambda (run) (mean (map expectation-fn run))) info))
+           (errors (map (lambda (estimate) (abs (- estimate true-expectation))) estimates))
+           (mean-abs-error (mean errors))          
+           (std-error (sqrt (/ (mean (map (lambda (x) (* x x)) errors))
+                               (length errors)) ) )
+           )
+      (if (> mean-abs-error tolerance)
+          (for-each display (list ".. failed! true expectation: "  true-expectation ", test mean: " (mean estimates) "\n"))
+          (display ".. passed.\n")))))
+
+(define samples 150)
+(define lag 20)
+(define runs 5)
+(define error-tolerance 0.07)
+
+
+(check-test (repeat runs
+                    (lambda ()
+                      (mh-query samples lag
+                                (define a (/ 1 1000))
+                                a
+                                (flip a) )))
+            (lambda (b) b)
+            (/ 1 1000)
+            0.0 ;;error-tolerance
+            "setting a flip" )
+
+(check-test (repeat runs
+                    (lambda ()
+                      (mh-query samples lag
+                                (flip 0.7)
+                                true )))
+            (lambda (x) (if x 1 0))
+            0.7
+            error-tolerance
+            "unconditioned flip.")
+
+(check-test (repeat runs
+                    (lambda ()
+                      (mh-query samples lag
+                                (define a (flip))
+                                (define b (flip))
+                                (and a b)
+                                (or a b) )))
+            (lambda (x) (if x 1 0))
+            (/ 1 3)
+            error-tolerance
+            "and conditioned on or." )
+
+(check-test (repeat runs
+                    (lambda ()
+                      (mh-query samples lag
+                                (define a (flip 0.3))
+                                (define b (flip 0.3))
+                                (and a b)
+                                (or a b) )))
+            (lambda (x) (if x 1 0))
+            (/ (* 0.3 0.3) (+ (* 0.3 0.3) (* 0.7 0.3) (* 0.3 0.7)))
+            error-tolerance
+            "and conditioned on or, biased flip." )
+
+(check-test (repeat runs
+                    (lambda ()
+                      (mh-query samples lag
+                                (define bit-flip (lambda (fidelity x) 
+                                                   (flip (if x fidelity (- 1 fidelity)))))
+                                (define hyp (flip 0.7))
+                                hyp
+                                (bit-flip 0.8 hyp) )))
+            (lambda (x) (if x 1 0)) 
+            (/ (* 0.7 0.8) (+ (* 0.7 0.8) (* 0.3 0.2)))
+            error-tolerance
+            "conditioned flip." )
+
+(check-test (repeat runs
+                    (lambda ()
+                      (mh-query samples lag
+                                (if (flip 0.7) (flip 0.2) (flip 0.8))
+                                true )))
+            (lambda (x) (if x 1 0)) 
+            (+ (* 0.7 0.2) (* 0.3 0.8))
+            error-tolerance
+            "random 'if' with random branches, unconditioned." )
+
+(check-test (repeat runs
+                    (lambda ()
+                      (mh-query samples lag
+                                (flip (if (flip 0.7) 0.2 0.8))
+                                true )))
+            (lambda (x) (if x 1 0))
+            (+ (* 0.7 0.2) (* 0.3 0.8))
+            error-tolerance
+            "flip with random weight, unconditioned." )
+
+(check-test (repeat runs
+                    (lambda ()
+                      (mh-query samples lag
+                                (define proc (if (flip 0.7) (lambda (x) (flip 0.2)) (lambda (x) (flip 0.8))))
+                                (proc 1)
+                                true )))
+            (lambda (x) (if x 1 0)) 
+            (+ (* 0.7 0.2) (* 0.3 0.8))
+            error-tolerance
+            "random procedure application, unconditioned." )
+
+(check-test (repeat runs
+                    (lambda ()
+                      (mh-query samples lag
+                                (define hyp (multinomial (list 'b 'c 'd) (list 0.1 0.6 0.3)))
+                                (define observe (lambda (x) (if (flip 0.8) x 'b))) ;;this will be high variance since likelihood is not marginalized.
+                                (eq? hyp 'b)
+                                (eq? (observe hyp) 'b) )))
+            (lambda (x) (if x 1 0)) 
+            0.357
+            error-tolerance
+            "conditioned multinomial.")
+
+
+(check-test (repeat runs
+                    (lambda ()
+                      (mh-query samples lag
+                                (define (power-law prob x) (if (flip prob) x (power-law prob (+ x 1))))
+                                (define a (power-law 0.3 1))
+                                (< a 5)
+                                true )))
+            (lambda (x) (if x 1 0)) 
+            (apply + ((lambda (prob) (map (lambda (x) (* (expt (- 1 prob) (- x 1)) prob)) (list 1 2 3 4))) 0.3))
+            error-tolerance
+            "recursive stochastic fn using define, unconditioned." )
+
+(check-test (repeat runs
+                    (lambda ()
+                      (mh-query samples lag
+                                (define proc (mem (lambda (x) (flip 0.8))))
+                                (and (proc 1) (proc 2) (proc 1) (proc 2))
+                                true )))
+            (lambda (x) (if x 1 0)) 
+            0.64
+            error-tolerance
+            "memoized flip, unconditioned." )
+
+(check-test (repeat runs
+                    (lambda ()
+                      (mh-query samples lag
+                                (define proc (mem (lambda (x) (flip 0.2))))
+                                (proc 1)
+                                (or (proc 1) (proc 2) (proc 2) (proc 2)) )))
+            (lambda (x) (if x 1 0)) 
+            (/ (+ (* 0.2 0.2) (* 0.2 0.8)) (+ (* 0.2 0.2) (* 0.2 0.8) (* 0.8 0.2)))
+            ;;(/ (+ (* 0.2 0.2  0.2 0.2 0.2) (* 0.2 0.2  0.8 0.8 0.8)) (+ (* 0.2 0.2  0.2 0.2 0.2) (* 0.2 0.2  0.8 0.8 0.8) (* 0.8 0.8 0.2 0.2 0.2)))
+            error-tolerance
+            "memoized flip, conditioned." )
+
+(check-test (repeat runs
+                    (lambda ()
+                      (mh-query samples lag
+                                (define a (flip 0.8))
+                                (define proc (mem (lambda (x) a)))
+                                (and (proc 1) (proc 1))
+                                true )))
+            (lambda (x) (if x 1 0)) 
+            0.8
+            error-tolerance
+            "bound symbol used inside memoizer, unconditioned." )
+
+(check-test (repeat runs
+                    (lambda ()
+                      (mh-query samples lag
+                                (define proc (mem (lambda (x) (flip 0.8))))
+                                (and (proc (uniform-draw (list 1 2 3))) (proc (uniform-draw (list 1 2 3))))
+                                true )))
+            (lambda (x) (if x 1 0)) 
+            (+ (* (/ 1 3) 0.8) (* (/ 2 3) (* 0.8 0.8)))
+            error-tolerance
+            "memoized flip with random argument, unconditioned." )
+
+
+(check-test (repeat runs
+                    (lambda ()
+                      (mh-query samples lag
+                                (define proc (if (flip 0.7) (lambda (x) (flip 0.2)) (lambda (x) (flip 0.8))))
+                                (define memproc (mem proc))
+                                (and (memproc 1) (memproc 2))
+                                true )))
+            (lambda (x) (if x 1 0)) 
+            (+ (* 0.7 0.2 0.2) (* 0.3 0.8 0.8))
+            error-tolerance
+            "memoized random procedure, unconditioned." )
+
+(check-test (repeat runs
+                    (lambda ()
+                      (mh-query samples lag
+                                (define bit-flip (lambda (fidelity x) (flip (if x fidelity (- 1 fidelity)))))
+                                (rejection-query (define a (flip 0.7)) a (bit-flip 0.8 a))
+                                true )))
+            (lambda (x) (if x 1 0)) 
+            (/ (* 0.7 0.8) (+ (* 0.7 0.8) (* 0.3 0.2)))
+            error-tolerance
+            "mh-query over rejection query for conditioned flip." )
+
+(check-test (repeat runs
+                    (lambda ()
+                      (mh-query samples lag
+                                (define a (if (flip 0.9) (first (beta 1 5)) 0.7))
+                                (define b (flip a))
+                                a
+                                b )))
+            (lambda (x) x)
+            0.417 ;approximated by 10000 rejection samples (in church, but not with mh...).
+            error-tolerance
+            "trans-dimensional." )
+
+(check-test (repeat runs
+                    (lambda ()
+                      (mh-query samples lag
+                                (define a (if (flip) (mem flip) (mem flip)))
+                                (define b (a))
+                                b
+                                true )))
+            (lambda (x) (if x 1 0)) 
+            0.5
+            error-tolerance
+            "memoized flip in if branch (create/destroy memprocs), unconditioned." )
+
+"tests done!"

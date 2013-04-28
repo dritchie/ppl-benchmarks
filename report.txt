@@ -1,0 +1,33 @@
+samples: 150
+
+Time for Bher (precompiled): 22
+Time for Python: 23.171907
+Time for Javascript: 35.417212
+Time for Lua: 8.458402
+Time for MIT-Church: 28.045353
+Time for Bher (full): 31.412293
+Time for Bher (pretransformed): 23.156753
+
+-------------
+
+samples: 300
+
+Time for Bher (precompiled): 47
+Time for Python: 46.1738
+Time for Javascript: 72.26963
+Time for Lua: 16.915596
+Time for MIT-Church: 53.809818
+Time for Bher (full): 46.451606
+Time for Bher (pretransformed): 49.370299
+
+--------------
+
+samples: 600
+
+Time for Bher (precompiled): 140
+Time for Python: 94.842657
+Time for Javascript: 140.38693
+Time for Lua: 33.685253
+Time for MIT-Church: 106.005018
+Time for Bher (full): 129.026177
+Time for Bher (pretransformed): 142.282217
