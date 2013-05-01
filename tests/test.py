@@ -18,7 +18,8 @@ def test(name, estimates, trueExpectation, tolerance=errorTolerance):
 		print "passed."
 
 def mhtest(name, computation, trueExpectation, tolerance=errorTolerance):
-	test(name, repeat(runs, lambda: expectation(computation, traceMH, samples, lag)), trueExpectation, tolerance)
+	#test(name, repeat(runs, lambda: expectation(computation, traceMH, samples, lag)), trueExpectation, tolerance)
+	test(name, repeat(runs, lambda: expectation(computation, LARJMH, samples, 0, None, lag)), trueExpectation, tolerance)
 
 
 if __name__ == "__main__":
@@ -119,10 +120,9 @@ if __name__ == "__main__":
 			recursiveStochasticTest, \
 			0.7599)
 
-
 	def memoizedFlipTest():
 		proc = mem(lambda x: flip(0.8))
-		return proc(1) and proc(2) and proc(1) and proc(2)
+		return all([proc(1), proc(2), proc(1), proc(2)])
 	mhtest("memoized flip, unconditioned", \
 			memoizedFlipTest, \
 			0.64)
@@ -130,7 +130,7 @@ if __name__ == "__main__":
 
 	def memoizedFlipConditionedTest():
 		proc = mem(lambda x: flip(0.2))
-		condition(proc(1) or proc(2) or proc(2) or proc(2))
+		condition(any([proc(1), proc(2), proc(2), proc(2)]))
 		return proc(1)
 	mhtest("memoized flip, conditioned", \
 			memoizedFlipConditionedTest, \
@@ -140,7 +140,7 @@ if __name__ == "__main__":
 	def boundSymbolInMemoizerTest():
 		a = flip(0.8)
 		proc = mem(lambda x: a)
-		return proc(1) and proc(1)
+		return all([proc(1), proc(1)])
 	mhtest("bound symbol used inside memoizer, unconditioned", \
 			boundSymbolInMemoizerTest, \
 			0.8)
@@ -148,7 +148,7 @@ if __name__ == "__main__":
 
 	def memRandomArgTest():
 		proc = mem(lambda x: flip(0.8))
-		return proc(uniformDraw([1,2,3])) and proc(uniformDraw([1,2,3]))
+		return all([proc(uniformDraw([1,2,3])), proc(uniformDraw([1,2,3]))])
 	mhtest("memoized flip with random argument, unconditioned", \
 			memRandomArgTest, \
 			0.6933333333333334)
@@ -157,7 +157,7 @@ if __name__ == "__main__":
 	def memRandomProc():
 		proc = (lambda x: flip(0.2)) if flip(0.7) else (lambda x: flip(0.8))
 		memproc = mem(proc)
-		return memproc(1) and memproc(2)
+		return all([memproc(1), memproc(2)])
 	mhtest("memoized random procedure, unconditioned", \
 			memRandomProc, \
 			0.22)

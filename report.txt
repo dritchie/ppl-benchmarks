@@ -31,3 +31,51 @@ Time for Lua: 33.685253
 Time for MIT-Church: 106.005018
 Time for Bher (full): 129.026177
 Time for Bher (pretransformed): 142.282217
+
+
+=====================================
+With flat variable list optimization
+=====================================
+
+
+samples: 150
+
+Time for Bher (precompiled): 31
+Time for Python: 25.405744
+Time for Javascript: 37.506146
+Time for Lua: 6.971618
+Time for MIT-Church: 30.568795
+Time for Bher (full): 51.072321
+Time for Bher (pretransformed): 33.220089
+
+Time for Bher (precompiled): 34
+Time for Python: 30.31157
+Time for Javascript: 52.227303
+Time for Lua: 9.81089
+Time for MIT-Church: 45.921972
+Time for Bher (full): 60.07199
+Time for Bher (pretransformed): 37.493622
+
+----------------
+
+samples: 300
+
+Time for Bher (precompiled): 76
+Time for Python: 53.693024
+Time for Javascript: 118.967697
+Time for Lua: 21.220783
+Time for MIT-Church: 108.428764
+Time for Bher (full): 106.479322
+Time for Bher (pretransformed): 79.038498
+
+-----------------
+
+samples: 600
+
+Time for Bher (precompiled): 200
+Time for Python: 223.006886
+Time for Javascript: 273.770906
+Time for Lua: 60.554322
+Time for MIT-Church: 229.988038
+Time for Bher (full): 225.76456
+Time for Bher (pretransformed): 203.585714
