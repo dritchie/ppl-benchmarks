@@ -144,9 +144,12 @@ end
 ------------------------------------
 
 local function runTest(name, computation)
+	-- Run twice to factor out JIT overhead.
 	local terra test()
-		var t0 = C.CurrentTimeInSeconds()
 		var samps = [mcmc(computation, RandomWalk(), {numsamps=samples})]
+		m.destruct(samps)
+		var t0 = C.CurrentTimeInSeconds()
+		samps = [mcmc(computation, RandomWalk(), {numsamps=samples})]
 		var t1 = C.CurrentTimeInSeconds()
 		m.destruct(samps)
 		return t1 - t0
@@ -183,6 +186,30 @@ function()
 	return terra()
 		return trainGMM(meanPriorMean, meanPriorSD, stddevPriorAlpha, stddevPriorBeta,
 						&weightPriors, &trainingData)
+	end
+end)
+
+runTest(
+"Medical Diagnosis Bayes Net",
+function()
+	return terra()
+		var worksInHospital = flip(0.01)
+		var smokes = flip(0.2)
+
+		var lungCancer = flip(0.01) or (smokes and flip(0.02))
+		var TB = flip(0.005) or (worksInHospital and flip(0.01))
+		var cold = flip(0.2) or (worksInHospital and flip(0.25))
+		var stomachFlu = flip(0.1)
+		var other = flip(0.1)
+
+		var cough = (cold and flip(0.5)) or (lungCancer and flip(0.2)) or (TB and flip(0.7)) or (other and flip(0.01))
+		var fever = (cold and flip(0.3)) or (stomachFlu and flip(0.5)) or (TB and flip(0.2)) or (other and flip(0.01))
+		var chestPain = (lungCancer and flip(0.4)) or (TB and flip(0.5)) or (other and flip(0.01))
+		var shortnessOfBreath = (lungCancer and flip(0.4)) or (TB and flip(0.5)) or (other and flip(0.01))
+
+		condition(cough and chestPain and shortnessOfBreath)
+
+		return array(lungCancer, TB)
 	end
 end)
 

@@ -20,5 +20,6 @@
    (list lung-cancer TB)
 
    (and cough chest-pain shortness-of-breath)
+)
 
-  )
+"Medical Diagnosis Bayes Net"
