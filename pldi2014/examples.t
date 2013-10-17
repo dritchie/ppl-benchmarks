@@ -18,7 +18,7 @@ double CurrentTimeInSeconds() {
 
 -- One dimensional Ising line of fixed size
 local function ising_closed()
-	return terra(numSites: uint, spinPrior: double, affinity: double)
+	return pfn(terra(numSites: uint, spinPrior: double, affinity: double)
 		var sites = [Vector(int)].stackAlloc(numSites, -1)
 		for i=0,numSites do
 			-- Priors
@@ -31,16 +31,16 @@ local function ising_closed()
 			end
 			return sites
 		end
-	end
+	end)
 end
 
 -- One dimensional Ising line of variable size
 local function ising_open()
 	local ising = ising_closed()
-	return terra(numPrior: double, spinPrior: double, affinity: double)
+	return pfn(terra(numPrior: double, spinPrior: double, affinity: double)
 		var numSites = poisson(numPrior)
 		return ising(numSites, spinPrior, affinity)
-	end
+	end)
 end
 
 ------------------------------------
@@ -83,14 +83,14 @@ local function gmm_sample()
 		return gaussian(model.means:get(which), model.stddevs:get(which), {structural=false, constrainTo=val})
 	end
 	sample:adddefinition(sample_conditioned:getdefinitions()[1])
-	return sample
+	return pfn(sample)
 end
 
 -- Train the parameters of a mixture of gaussians with known number of components
 --    using some data
 local function gmm_train()
 	local gmm = gmm_sample()
-	return terra(meanPriorMean: double, meanPriorSD: double, stddevPriorAlpha: double, stddevPriorBeta: double,
+	return pfn(terra(meanPriorMean: double, meanPriorSD: double, stddevPriorAlpha: double, stddevPriorBeta: double,
 				 weightPriors: &Vector(double), data: &Vector(double))
 		var model = GMM.stackAlloc()
 		m.destruct(model.weights)
@@ -105,7 +105,7 @@ local function gmm_train()
 		end
 
 		return model
-	end
+	end)
 end
 
 ------------------------------------

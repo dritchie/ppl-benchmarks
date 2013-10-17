@@ -4,10 +4,10 @@ function ising_closed(numSites, spinPrior, affinity)
 {
 	var sites = new Int32Array(numSites)
 	// Priors
-	for (i = 0; i < numSites; i++)
+	for (var i = 0; i < numSites; i++)
 		sites[i] = flip(spinPrior, false) ? 1 : -1
 	// Factors
-	for (i = 0; i < numSites-1; i++)
+	for (var i = 0; i < numSites-1; i++)
 		factor(affinity*sites[i]*sites[i+1])
 	return sites
 }
@@ -21,6 +21,44 @@ function ising_open(numPrior, spinPrior, affinity)
 
 ///////////////////////////////////////
 
+function GMM(size)
+{
+	var obj = {}
+	//obj.weights = new Float64Array(size)
+	obj.means = new Float64Array(size)
+	obj.stddevs = new Float64Array(size)
+	return obj
+}
+
+// Sample from a mixture of gaussians with known number of components
+function gmm_sample(model)
+{
+	var which = multinomial(model.weights, false)
+	return gaussian(model.means, model.stddevs, false)
+}
+// Do the same as above, but constrain the output of the gaussian
+function gmm_sample_conditioned(model, val)
+{
+	var which = multinomial(model.weights, false)
+	return gaussian(model.means, model.stddevs, false, val)
+}
+
+// Train the parameters of a mixture of gaussians using some data
+function gmm_train(meanPriorMean, meanPriorSD, stddevPriorAlpha, stddevPriorBeta, weightPriors, data)
+{
+	var model = GMM(weightPriors.length)
+	model.weights = new Float64Array(dirichlet(weightPriors, false))
+	for (var i = 0; i < model.means.length; i++)
+		model.means[i] = gaussian(meanPriorMean, meanPriorSD, false)
+	for (var i = 0; i < model.stddevs.length; i++)
+		model.stddevs[i] = 1.0/gamma(stddevPriorAlpha, stddevPriorBeta, false)
+	for (var i = 0; i < data.length; i++)
+		gmm_sample_conditioned(model, data[i])
+	return model
+}
+
+///////////////////////////////////////
+
 // MCMC
 var samples = 5000
 
@@ -29,6 +67,25 @@ var isingNumSites = 1000
 var isingNumPrior = 1000
 var isingSitePrior = 0.5
 var isingAffinity = 2.0
+
+// GMM Examples
+var numDataPoints = 1000
+var sourceModel = GMM(3)
+var trainingData = new Float64Array(numDataPoints)
+var weightPriors = new Float64Array([0.33, 0.33, 0.33])
+var meanPriorMean = 0.0
+var meanPriorSD = 3.0
+var stddevPriorAlpha = 2.0
+var stddevPriorBeta = 2.0
+function setupGMMGlobals()
+{
+	sourceModel.weights = new Float64Array([0.1, 0.3, 0.6])
+	sourceModel.means = new Float64Array([0.0, -5.7, 9.6])
+	sourceModel.stddevs = new Float64Array([0.5, 1.1, 0.2])
+	for (var i = 0; i < numDataPoints; i++)
+		trainingData[i] = gmm_sample(sourceModel)
+}
+
 
 ///////////////////////////////////////
 
@@ -55,3 +112,17 @@ function()
 {
 	return ising_open(isingNumPrior, isingNumPrior, isingAffinity)
 })
+
+setupGMMGlobals()
+runTest(
+"Train GMM",
+function()
+{
+	return gmm_train(meanPriorMean, meanPriorSD, stddevPriorAlpha, stddevPriorBeta,
+					 weightPriors, trainingData)
+})
+
+
+
+
+
