@@ -58,6 +58,12 @@ terra GMM:__construct()
 	m.init(self.stddevs)
 end
 
+terra GMM:__copy(other: &GMM)
+	self.weights = m.copy(other.weights)
+	self.means = m.copy(other.means)
+	self.stddevs = m.copy(other.stddevs)
+end
+
 terra GMM:__destruct()
 	m.destruct(self.weights)
 	m.destruct(self.means)
@@ -72,18 +78,20 @@ local function gmm_sample()
 		var which = multinomial(model.weights, {structural=false})
 		return gaussian(model.means:get(which), model.stddevs:get(which), {structural=false})
 	end
-	local terra sample(model: &GMM, val: double)
+	local terra sample_conditioned(model: &GMM, val: double)
 		var which = multinomial(model.weights, {structural=false})
 		return gaussian(model.means:get(which), model.stddevs:get(which), {structural=false, constrainTo=val})
 	end
+	sample:adddefinition(sample_conditioned:getdefinitions()[1])
+	return sample
 end
 
 -- Train the parameters of a mixture of gaussians with known number of components
 --    using some data
 local function gmm_train()
 	local gmm = gmm_sample()
-	return terra(meanPriorMean: double, meanPriorSD: double, stddevPriorAlpha: double, stddevPriorBeta: doble,
-				 weightPriors: &Vector(doubles), data: &Vector(doubles))
+	return terra(meanPriorMean: double, meanPriorSD: double, stddevPriorAlpha: double, stddevPriorBeta: double,
+				 weightPriors: &Vector(double), data: &Vector(double))
 		var model = GMM.stackAlloc()
 		m.destruct(model.weights)
 		model.weights = dirichlet(@weightPriors, {structural=false})
@@ -110,6 +118,28 @@ local isingNumSites = 1000
 local isingNumPrior = 1000
 local isingSitePrior = 0.5
 local isingAffinity = 2.0
+
+-- GMM Examples
+local numDataPoints = 1000
+local sourceModel = global(GMM)
+local trainingData = global(Vector(double))
+local weightPriors = global(Vector(double))
+local meanPriorMean = 0.0
+local meanPriorSD = 3.0
+local stddevPriorAlpha = 2.0
+local stddevPriorBeta = 2.0
+local sampleGMM = gmm_sample()
+local terra setupGMMGlobals()
+	sourceModel = GMM.stackAlloc()
+	sourceModel.weights:fill(0.1, 0.3, 0.6)
+	sourceModel.means:fill(0.0, -5.7, 9.6)
+	sourceModel.stddevs:fill(0.5, 1.1, 0.2)
+	trainingData = [Vector(double)].stackAlloc(numDataPoints, 0.0)
+	for i=0,numDataPoints do
+		trainingData:set(i, sampleGMM(&sourceModel))
+	end
+	weightPriors = Vector.fromItems(0.33, 0.33, 0.33)
+end
 
 ------------------------------------
 
@@ -145,6 +175,17 @@ function()
 	local ising = ising_open()
 	return terra()
 		return ising(isingNumPrior, isingSitePrior, isingAffinity)
+	end
+end)
+
+setupGMMGlobals()
+runTest(
+"Train GMM",
+function()
+	local trainGMM = gmm_train()
+	return terra()
+		return trainGMM(meanPriorMean, meanPriorSD, stddevPriorAlpha, stddevPriorBeta,
+						&weightPriors, &trainingData)
 	end
 end)
 
