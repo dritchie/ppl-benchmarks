@@ -1,0 +1,57 @@
+
+// One dimensional Ising line of fixed size
+function ising_closed(numSites, spinPrior, affinity)
+{
+	var sites = new Int32Array(numSites)
+	// Priors
+	for (i = 0; i < numSites; i++)
+		sites[i] = flip(spinPrior, false) ? 1 : -1
+	// Factors
+	for (i = 0; i < numSites-1; i++)
+		factor(affinity*sites[i]*sites[i+1])
+	return sites
+}
+
+// One dimensional Ising line of variable size
+function ising_open(numPrior, spinPrior, affinity)
+{
+	var numSites = poisson(numPrior, true)
+	return ising_closed(numSites, spinPrior, affinity)
+}
+
+///////////////////////////////////////
+
+// MCMC
+var samples = 5000
+
+// Ising Examples
+var isingNumSites = 1000
+var isingNumPrior = 1000
+var isingSitePrior = 0.5
+var isingAffinity = 2.0
+
+///////////////////////////////////////
+
+function runTest(name, computation)
+{
+	var d0 = new Date()
+	traceMH(computation, samples)
+	var d1 = new Date()
+	console.log(name + ": " + ((d1.getTime() - d0.getTime())/1000) + " seconds")
+}
+
+///////////////////////////////////////
+
+runTest(
+"Ising Line (Closed-Universe)",
+function()
+{
+	return ising_closed(isingNumSites, isingNumPrior, isingAffinity)
+})
+
+runTest(
+"Ising Line (Open-Universe)",
+function()
+{
+	return ising_open(isingNumPrior, isingNumPrior, isingAffinity)
+})
