@@ -144,12 +144,9 @@ end
 ------------------------------------
 
 local function runTest(name, computation)
-	-- Run twice to offset any JIT compilation costs
 	local terra test()
-		var samps = [mcmc(computation, RandomWalk(), {numsamps=samples})]
-		m.destruct(samps)
 		var t0 = C.CurrentTimeInSeconds()
-		samps = [mcmc(computation, RandomWalk(), {numsamps=samples})]
+		var samps = [mcmc(computation, RandomWalk(), {numsamps=samples})]
 		var t1 = C.CurrentTimeInSeconds()
 		m.destruct(samps)
 		return t1 - t0

@@ -1,0 +1,24 @@
+
+(define samples 5000)
+(define lag 1)
+
+(mh-query samples lag
+    (define works-in-hospital (flip 0.01))
+    (define smokes (flip 0.2))
+
+    (define lung-cancer (or (flip 0.01) (and smokes (flip 0.02))))
+    (define TB (or (flip 0.005) (and works-in-hospital (flip 0.01))))
+    (define cold (or (flip 0.2) (and works-in-hospital (flip 0.25))))
+    (define stomach-flu (flip 0.1))
+    (define other (flip 0.1))
+
+    (define cough (or (and cold (flip 0.5)) (and lung-cancer (flip 0.3)) (and TB (flip 0.7)) (and other (flip 0.01))))
+    (define fever (or (and cold (flip 0.3)) (and stomach-flu (flip 0.5)) (and TB (flip 0.2)) (and other (flip 0.01))))
+    (define chest-pain (or (and lung-cancer (flip 0.4)) (and TB (flip 0.5)) (and other( flip 0.01))))
+    (define shortness-of-breath (or (and lung-cancer (flip 0.4)) (and TB (flip 0.5)) (and other (flip 0.01))))
+
+   (list lung-cancer TB)
+
+   (and cough chest-pain shortness-of-breath)
+
+  )
