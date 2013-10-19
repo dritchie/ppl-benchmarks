@@ -110,6 +110,44 @@ end
 
 ------------------------------------
 
+local numStates = 9
+local numVocabWords = 11
+
+local function hmm()
+
+	local HMM = {}
+
+	HMM.observationModel = memglobal(pfn(terra(state: uint)
+		return dirichlet([Vector(double)].stackAlloc(numVocabWords, 1.0))
+	end))
+
+	HMM.observation = pfn(terra(state: uint)
+		return multinomial(HMM.observationModel(state))
+	end)
+
+	HMM.transitionModel = memglobal(pfn(terra(state: uint)
+		return dirichlet([Vector(double)].stackAlloc(numStates, 1.0))
+	end))
+
+	HMM.transition = pfn(terra(state: uint)
+		return multinomial(HMM.transitionModel(state))
+	end)
+
+	HMM.sampleWordsFixedn = pfn(terra(n: uint)
+		var state = 0U
+		var sequence = [Vector(uint)].stackAlloc(n, 0)
+		for i=0,n do
+			sequence:set(i, HMM.observation(state))
+			state = HMM.transition(state)
+		end
+		return sequence
+	end)
+
+	return HMM
+end
+
+------------------------------------
+
 -- MCMC
 local samples = 5000
 
@@ -189,27 +227,38 @@ function()
 	end
 end)
 
+-- runTest(
+-- "Medical Diagnosis Bayes Net",
+-- function()
+-- 	return terra()
+-- 		var worksInHospital = flip(0.01)
+-- 		var smokes = flip(0.2)
+
+-- 		var lungCancer = flip(0.01) or (smokes and flip(0.02))
+-- 		var TB = flip(0.005) or (worksInHospital and flip(0.01))
+-- 		var cold = flip(0.2) or (worksInHospital and flip(0.25))
+-- 		var stomachFlu = flip(0.1)
+-- 		var other = flip(0.1)
+
+-- 		var cough = (cold and flip(0.5)) or (lungCancer and flip(0.2)) or (TB and flip(0.7)) or (other and flip(0.01))
+-- 		var fever = (cold and flip(0.3)) or (stomachFlu and flip(0.5)) or (TB and flip(0.2)) or (other and flip(0.01))
+-- 		var chestPain = (lungCancer and flip(0.4)) or (TB and flip(0.5)) or (other and flip(0.01))
+-- 		var shortnessOfBreath = (lungCancer and flip(0.4)) or (TB and flip(0.5)) or (other and flip(0.01))
+
+-- 		condition(cough and chestPain and shortnessOfBreath)
+
+-- 		return array(lungCancer, TB)
+-- 	end
+-- end)
+
 runTest(
-"Medical Diagnosis Bayes Net",
-function()
+"HMM",
+function ()
+	local HMM = hmm()
 	return terra()
-		var worksInHospital = flip(0.01)
-		var smokes = flip(0.2)
-
-		var lungCancer = flip(0.01) or (smokes and flip(0.02))
-		var TB = flip(0.005) or (worksInHospital and flip(0.01))
-		var cold = flip(0.2) or (worksInHospital and flip(0.25))
-		var stomachFlu = flip(0.1)
-		var other = flip(0.1)
-
-		var cough = (cold and flip(0.5)) or (lungCancer and flip(0.2)) or (TB and flip(0.7)) or (other and flip(0.01))
-		var fever = (cold and flip(0.3)) or (stomachFlu and flip(0.5)) or (TB and flip(0.2)) or (other and flip(0.01))
-		var chestPain = (lungCancer and flip(0.4)) or (TB and flip(0.5)) or (other and flip(0.01))
-		var shortnessOfBreath = (lungCancer and flip(0.4)) or (TB and flip(0.5)) or (other and flip(0.01))
-
-		condition(cough and chestPain and shortnessOfBreath)
-
-		return array(lungCancer, TB)
+		var sequence = HMM.sampleWordsFixedn(100)
+		condition(sequence:get(1) == 2)
+		return sequence
 	end
 end)
 

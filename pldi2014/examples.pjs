@@ -59,6 +59,51 @@ function gmm_train(meanPriorMean, meanPriorSD, stddevPriorAlpha, stddevPriorBeta
 
 ///////////////////////////////////////
 
+var numStates = 9
+var numVocabWords = 11
+
+function listOf(elem, len)
+{
+	var l = []
+	for (var i = 0; i < len; i++)
+		l.push(elem)
+	return l
+}
+
+var observationModel = mem(function(state)
+{
+	return dirichlet(listOf(1.0, numVocabWords))
+})
+
+function observation(state)
+{
+	return multinomial(observationModel(state))
+}
+
+var transitionModel = mem(function(state)
+{
+	return dirichlet(listOf(1.0, numStates))
+})
+
+function transition(state)
+{
+	return multinomial(transitionModel(state))
+}
+
+function sampleWordsFixedn(n)
+{
+	var state = 0
+	var sequence = []
+	for (var i = 0; i < n; i++)
+	{
+		sequence.push(observation(state))
+		state = transition(state)
+	}
+	return sequence
+}
+
+///////////////////////////////////////
+
 // MCMC
 var samples = 5000
 
@@ -122,27 +167,36 @@ function()
 					 weightPriors, trainingData)
 })
 
+// runTest(
+// "Medical Diagnosis Bayes Net",
+// function()
+// {
+// 	var worksInHospital = flip(0.01)
+// 	var smokes = flip(0.2)
+
+// 	var lungCancer = flip(0.01) || (smokes && flip(0.02))
+// 	var TB = flip(0.005) || (worksInHospital && flip(0.01))
+// 	var cold = flip(0.2) || (worksInHospital && flip(0.25))
+// 	var stomachFlu = flip(0.1)
+// 	var other = flip(0.1)
+
+// 	var cough = (cold && flip(0.5)) || (lungCancer && flip(0.3)) || (TB && flip(0.7)) || (other && flip(0.01))
+// 	var fever = (cold && flip(0.3)) || (stomachFlu && flip(0.5)) || (TB && flip(0.2)) || (other && flip(0.01))
+// 	var chestPain = (lungCancer && flip(0.4)) || (TB && flip(0.5)) || (other && flip(0.01))
+// 	var shortnessOfBreath = (lungCancer && flip(0.4)) || (TB && flip(0.5)) || (other && flip(0.01))
+
+// 	condition(cough && chestPain && shortnessOfBreath)
+
+// 	return [lungCancer, TB]
+// })
+
 runTest(
-"Medical Diagnosis Bayes Net",
+"HMM",
 function()
 {
-	var worksInHospital = flip(0.01)
-	var smokes = flip(0.2)
-
-	var lungCancer = flip(0.01) || (smokes && flip(0.02))
-	var TB = flip(0.005) || (worksInHospital && flip(0.01))
-	var cold = flip(0.2) || (worksInHospital && flip(0.25))
-	var stomachFlu = flip(0.1)
-	var other = flip(0.1)
-
-	var cough = (cold && flip(0.5)) || (lungCancer && flip(0.3)) || (TB && flip(0.7)) || (other && flip(0.01))
-	var fever = (cold && flip(0.3)) || (stomachFlu && flip(0.5)) || (TB && flip(0.2)) || (other && flip(0.01))
-	var chestPain = (lungCancer && flip(0.4)) || (TB && flip(0.5)) || (other && flip(0.01))
-	var shortnessOfBreath = (lungCancer && flip(0.4)) || (TB && flip(0.5)) || (other && flip(0.01))
-
-	condition(cough && chestPain && shortnessOfBreath)
-
-	return [lungCancer, TB]
+	var sequence = sampleWordsFixedn(100)
+	condition(sequence[1] == 2)
+	return sequence
 })
 
 

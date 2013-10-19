@@ -1,0 +1,42 @@
+(define states '(s1 s2 s3 s4 s5 s6 s7 s8 stop))
+
+(define vocabulary '(the makes chef an omelet for soup eats works king bakes))
+
+
+(define state->observation-model
+  (mem (lambda (state) (dirichlet (make-list (length vocabulary) 1)))))
+
+(define (observation state)
+  (multinomial vocabulary (state->observation-model state)))
+
+(define state->transition-model
+  (mem (lambda (state) (dirichlet (make-list (length states) 1)))))
+
+(define (transition state)
+  (multinomial states (state->transition-model state)))
+
+
+(define (sample-words last-state)
+  (if (equal? last-state 'stop)
+      '()
+      (cons (observation last-state) (sample-words (transition last-state)))))
+
+(define (sample-words-fixedn last-state n)
+	(if (= n 0)
+		'()
+		(cons (observation last-state)
+			(sample-words-fixedn (transition last-state) (- n 1)))))
+
+(define samples 5000)
+(define lag 1)
+
+(mh-query samples lag
+	; (define sequence (sample-words 'start))
+	(define sequence (sample-words-fixedn 'start 100))
+	sequence
+	; (equal? (car sequence) 'the)
+	(equal? (cadr sequence) 'chef)
+	; #t
+)
+
+"HMM"
