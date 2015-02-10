@@ -1,4 +1,4 @@
-local util = terralib.require("util")
+local util = require("util")
 
 -- Just invoke all the files for each language
 

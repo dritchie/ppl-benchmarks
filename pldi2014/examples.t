@@ -1,6 +1,6 @@
-terralib.require("prob")
-local Vector = terralib.require("vector")
-local m = terralib.require("mem")
+require("prob")
+local Vector = require("vector")
+local m = require("mem")
 
 local C = terralib.includecstring [[
 #include <stdlib.h>

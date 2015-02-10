@@ -4,7 +4,7 @@
 -------------------
 
 
-local util = terralib.require("util")
+local util = require("util")
 
 local function getLineCount(filename)
 	return tonumber(util.wait(string.format("wc %s", filename)):split(" ")[1])
